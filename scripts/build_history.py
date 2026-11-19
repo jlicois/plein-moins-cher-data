@@ -116,9 +116,8 @@ def main() -> None:
     if successful == 0:
         raise RuntimeError("Aucun relevé quotidien n'a pu être importé.")
 
-    cutoff = int((today - dt.timedelta(days=KEEP_DAYS)).replace(
-        tzinfo=dt.timezone.utc
-    ).timestamp())
+    cutoff_day = today - dt.timedelta(days=KEEP_DAYS)
+    cutoff = int(dt.datetime.combine(cutoff_day, dt.time(), tzinfo=dt.timezone.utc).timestamp())
     DATA.mkdir(parents=True, exist_ok=True)
     PUBLIC.mkdir(parents=True, exist_ok=True)
     for i, stations in enumerate(shards):
