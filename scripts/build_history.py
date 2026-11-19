@@ -82,7 +82,7 @@ def parse_price_records(payload: bytes, shards: list[dict], cutoff: int) -> int:
                                 if stamp >= cutoff and value > 0:
                                     add_record(shards, station_id, fuel, stamp, value)
                                     count += 1
-                    elem.clear()
+                        elem.clear()
     return count
 
 
