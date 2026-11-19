@@ -84,7 +84,7 @@ def main() -> None:
     today = dt.datetime.now(dt.timezone.utc).date()
     shards = load_shards()
     initialized = any(bool(s) for s in shards)
-    days = [today - dt.timedelta(days=1)]
+    days = [today - dt.timedelta(days=n) for n in (3, 2, 1)]
     if not initialized:
         # Le flux quotidien officiel est consultable sur les 30 derniers jours.
         days = [today - dt.timedelta(days=n) for n in range(30, 0, -1)]
