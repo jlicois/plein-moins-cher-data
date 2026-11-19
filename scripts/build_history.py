@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build rolling station/fuel price history from official French annual archives."""
+"""Build rolling 30-day station/fuel price history from official daily feeds."""
 from __future__ import annotations
 
 import datetime as dt
@@ -16,8 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "shards"
 PUBLIC = ROOT / "public" / "history"
 SHARDS = 64
-KEEP_DAYS = 400
-ANNUAL_URL = "https://donnees.roulez-eco.fr/opendata/annee/{}"
+KEEP_DAYS = 30
 DAILY_URL = "https://donnees.roulez-eco.fr/opendata/jour/{}"
 
 
@@ -92,29 +91,14 @@ def fetch(url: str) -> bytes:
         return response.read()
 
 
-def import_annual_history(shards: list[dict], today: dt.date, cutoff: int) -> int:
-    total = 0
-    # Annual stocks are refreshed daily and contain the year's price records.
-    for year in (today.year - 1, today.year):
-        url = ANNUAL_URL.format(year)
-        print(f"Import archive annuelle {year}: {url}", flush=True)
-        payload = fetch(url)
-        found = parse_price_records(payload, shards, cutoff)
-        print(f"  {found} relevé(s) horodaté(s) retenu(s)", flush=True)
-        total += found
-    if total < 2:
-        raise RuntimeError("Les archives annuelles n'ont pas fourni assez de relevés horodatés.")
-    return total
-
-
 def import_recent_days(shards: list[dict], today: dt.date, cutoff: int) -> int:
     total = 0
-    for offset in (3, 2, 1):
+    for offset in range(29, 0, -1) if not initialized else (2, 1):
         day = today - dt.timedelta(days=offset)
         url = DAILY_URL.format(day.strftime("%Y%m%d"))
         print(f"Complément quotidien {day.isoformat()}: {url}", flush=True)
         payload = fetch(url)
-        # Daily XML contains the latest price per station; maj gives its real update time.
+        # Each daily archive is a dated snapshot; maj is the price update timestamp.
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
             xml_names = [n for n in archive.namelist() if n.lower().endswith(".xml")]
             if not xml_names:
@@ -150,12 +134,12 @@ def main() -> None:
     today = dt.datetime.now(dt.timezone.utc).date()
     cutoff_day = today - dt.timedelta(days=KEEP_DAYS)
     cutoff = int(dt.datetime.combine(cutoff_day, dt.time(), tzinfo=dt.timezone.utc).timestamp())
-    marker = DATA.parent / "annual_import_complete.txt"
+    marker = DATA.parent / "daily_import_complete.txt"
     initialized = marker.exists()
     shards = load_shards() if initialized else [{} for _ in range(SHARDS)]
 
     if not initialized:
-        imported = import_annual_history(shards, today, cutoff)
+        imported = import_recent_days(shards, today, cutoff)
         marker.write_text(f"annual import completed {today.isoformat()}\\n", encoding="utf-8")
     else:
         imported = import_recent_days(shards, today, cutoff)
@@ -183,15 +167,15 @@ def main() -> None:
         "updated": today.isoformat(),
         "shards": SHARDS,
         "retention_days": KEEP_DAYS,
-        "history_days_target": 365,
-        "source": "https://donnees.roulez-eco.fr/opendata/annee/AAAA",
+        "history_days_target": 30,
+        "source": "https://donnees.roulez-eco.fr/opendata/jour/AAAAMMJJ",
         "records_imported_this_run": imported,
     }
     (PUBLIC / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
 
     subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=ROOT, check=True)
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], cwd=ROOT, check=True)
-    subprocess.run(["git", "add", "data/shards", "data/annual_import_complete.txt", "public/history"], cwd=ROOT, check=True)
+    subprocess.run(["git", "add", "data/shards", "data/daily_import_complete.txt", "public/history"], cwd=ROOT, check=True)
     diff = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=ROOT)
     if diff.returncode == 1:
         subprocess.run(["git", "commit", "-m", f"Mettre à jour l'historique carburants ({today.isoformat()})"], cwd=ROOT, check=True)
