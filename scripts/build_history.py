@@ -134,7 +134,7 @@ def main() -> None:
     today = dt.datetime.now(dt.timezone.utc).date()
     cutoff_day = today - dt.timedelta(days=KEEP_DAYS - 1)
     cutoff = int(dt.datetime.combine(cutoff_day, dt.time(), tzinfo=dt.timezone.utc).timestamp())
-    marker = DATA.parent / "daily_import_complete.txt"
+    marker = DATA.parent / "daily_import_complete_v2.txt"
     initialized = marker.exists()
     shards = load_shards() if initialized else [{} for _ in range(SHARDS)]
 
