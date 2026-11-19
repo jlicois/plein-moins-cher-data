@@ -146,11 +146,13 @@ def main() -> None:
     today = dt.datetime.now(dt.timezone.utc).date()
     cutoff_day = today - dt.timedelta(days=KEEP_DAYS)
     cutoff = int(dt.datetime.combine(cutoff_day, dt.time(), tzinfo=dt.timezone.utc).timestamp())
-    shards = load_shards()
-    initialized = any(bool(s) for s in shards)
+    marker = DATA.parent / "annual_import_complete.txt"
+    initialized = marker.exists()
+    shards = load_shards() if initialized else [{} for _ in range(SHARDS)]
 
     if not initialized:
         imported = import_annual_history(shards, today, cutoff)
+        marker.write_text(f"annual import completed {today.isoformat()}\\n", encoding="utf-8")
     else:
         imported = import_recent_days(shards, today, cutoff)
         if imported == 0:
@@ -185,7 +187,7 @@ def main() -> None:
 
     subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=ROOT, check=True)
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], cwd=ROOT, check=True)
-    subprocess.run(["git", "add", "data/shards", "public/history"], cwd=ROOT, check=True)
+    subprocess.run(["git", "add", "data/shards", "data/annual_import_complete.txt", "public/history"], cwd=ROOT, check=True)
     diff = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=ROOT)
     if diff.returncode == 1:
         subprocess.run(["git", "commit", "-m", f"Mettre à jour l'historique carburants ({today.isoformat()})"], cwd=ROOT, check=True)
