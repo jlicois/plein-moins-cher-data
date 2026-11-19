@@ -115,12 +115,12 @@ def import_recent_days(shards: list[dict], today: dt.date, cutoff: int, initial:
                                     try:
                                         fuel = child.attrib.get("nom", "").strip()
                                         value = float(child.attrib.get("valeur", "").strip().replace(",", "."))
-                                        updated = child.attrib.get("maj", "").strip()
-                                        try:
-                                            date = dt.datetime.strptime(updated, "%Y-%m-%d %H:%M:%S")
-                                        except ValueError:
-                                            date = dt.datetime.combine(day, dt.time())
-                                        stamp = int(date.replace(tzinfo=dt.timezone.utc).timestamp())
+                                        # La date du fichier quotidien représente le relevé observé.
+                                        # maj indique seulement la dernière modification du prix et
+                                        # ne doit pas fusionner les jours où le prix est resté stable.
+                                        stamp = int(dt.datetime.combine(
+                                            day, dt.time(), tzinfo=dt.timezone.utc
+                                        ).timestamp())
                                         if stamp >= cutoff and value > 0:
                                             add_record(shards, station_id, fuel, stamp, value)
                                             total += 1
