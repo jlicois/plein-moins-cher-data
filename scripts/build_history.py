@@ -131,8 +131,12 @@ def import_recent_days(shards: list[dict], today: dt.date, cutoff: int) -> int:
                                     try:
                                         fuel = child.attrib.get("nom", "").strip()
                                         value = float(child.attrib.get("valeur", "").strip().replace(",", "."))
-                                        date = dt.datetime.strptime(child.attrib.get("maj", "").strip(), "%Y-%m-%d %H:%M:%S").replace(tzinfo=dt.timezone.utc)
-                                        stamp = int(date.timestamp())
+                                        updated = child.attrib.get("maj", "").strip()
+                                        try:
+                                            date = dt.datetime.strptime(updated, "%Y-%m-%d %H:%M:%S")
+                                        except ValueError:
+                                            date = dt.datetime.combine(day, dt.time())
+                                        stamp = int(date.replace(tzinfo=dt.timezone.utc).timestamp())
                                         if stamp >= cutoff and value > 0:
                                             add_record(shards, station_id, fuel, stamp, value)
                                             total += 1
