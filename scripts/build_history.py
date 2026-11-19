@@ -138,7 +138,7 @@ def import_recent_days(shards: list[dict], today: dt.date, cutoff: int) -> int:
                                             total += 1
                                     except (TypeError, ValueError):
                                         continue
-                        elem.clear()
+                            elem.clear()
     return total
 
 
