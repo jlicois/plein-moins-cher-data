@@ -132,15 +132,17 @@ def import_recent_days(shards: list[dict], today: dt.date, cutoff: int, initial:
 
 def main() -> None:
     today = dt.datetime.now(dt.timezone.utc).date()
-    cutoff_day = today - dt.timedelta(days=KEEP_DAYS)
+    cutoff_day = today - dt.timedelta(days=KEEP_DAYS - 1)
     cutoff = int(dt.datetime.combine(cutoff_day, dt.time(), tzinfo=dt.timezone.utc).timestamp())
     marker = DATA.parent / "daily_import_complete.txt"
     initialized = marker.exists()
     shards = load_shards() if initialized else [{} for _ in range(SHARDS)]
 
     if not initialized:
-        imported = import_recent_days(shards, today, cutoff, initial=not initialized)
-        marker.write_text(f"annual import completed {today.isoformat()}\\n", encoding="utf-8")
+        imported = import_recent_days(shards, today, cutoff, initial=True)
+        if imported == 0:
+            raise RuntimeError("Aucun relevé quotidien officiel n'a pu être importé.")
+        marker.write_text(f"daily import completed {today.isoformat()}\\n", encoding="utf-8")
     else:
         imported = import_recent_days(shards, today, cutoff)
         if imported == 0:
