@@ -91,9 +91,9 @@ def fetch(url: str) -> bytes:
         return response.read()
 
 
-def import_recent_days(shards: list[dict], today: dt.date, cutoff: int) -> int:
+def import_recent_days(shards: list[dict], today: dt.date, cutoff: int, initial: bool = False) -> int:
     total = 0
-    for offset in range(29, 0, -1) if not initialized else (2, 1):
+    for offset in (range(29, 0, -1) if initial else (2, 1)):
         day = today - dt.timedelta(days=offset)
         url = DAILY_URL.format(day.strftime("%Y%m%d"))
         print(f"Complément quotidien {day.isoformat()}: {url}", flush=True)
@@ -139,7 +139,7 @@ def main() -> None:
     shards = load_shards() if initialized else [{} for _ in range(SHARDS)]
 
     if not initialized:
-        imported = import_recent_days(shards, today, cutoff)
+        imported = import_recent_days(shards, today, cutoff, initial=not initialized)
         marker.write_text(f"annual import completed {today.isoformat()}\\n", encoding="utf-8")
     else:
         imported = import_recent_days(shards, today, cutoff)
